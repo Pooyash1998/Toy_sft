@@ -42,7 +42,7 @@ print("Loaded tokenizer")
 
 model = AutoModelForCausalLM.from_pretrained(
     BASE_MODEL_ID,
-    torch_dtype=dtype,
+    dtype=dtype,
     trust_remote_code=True,
     device_map={"": device},
     cache_dir=MODEL_PATH,
@@ -88,7 +88,7 @@ with mlflow.start_run(run_name=RUN_NAME):
     mlflow.log_params({
         "model_id":      BASE_MODEL_ID,
         "device":        device,
-        "dtype":         str(dtype),
+        "model_dtype":   str(dtype),
         "lora_r":        LORA_R,
         "lora_alpha":    LORA_ALPHA,
         "lora_dropout":  LORA_DROPOUT,
