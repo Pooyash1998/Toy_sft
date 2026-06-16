@@ -8,55 +8,72 @@ pip install -r requirements-mac.txt
 ```
 
 **CUDA cluster (tested on CUDA 12.0 / RTX 3090)**
-
 ```bash
 conda create -n sft python=3.12 -y && conda activate sft
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
 ```
 
-## Explaination 
-
-1. **prepare_data.py** downloads and saves the UltraFeedback dataset locally
-2. **train.py** fine-tunes the model with LoRA
-3. **merge.py** merges the LoRA adapter into the base model
-4. **eval.py** runs LM Evaluation Harness and logs results to MLflow
-+ `experiment.py` to run everything end to end.
-
-## Configs!
+## First-time data prep (run once)
 
 ```bash
-python experiment.py --exp 2
+python prepare_data.py        # downloads UltraFeedback (5000 train / 500 test)
+python prepare_eval_data.py   # downloads MLQA + MathQA for eval tasks
 ```
-This will:
-- Evaluate the base model (baseline)
-- Train with the config's hyperparameters
-- Merge the adapter
-- Evaluate the fine-tuned model
-- Log a comparison (delta) to MLflow
 
-## Configs i defined so far
+## Running an experiment
 
-in `configs/`:
+```bash
+python experiment.py --exp 1
+```
 
-| Config | LR | LoRA r | Epochs | Samples |
-|--------|-----|--------|--------|---------|
-| exp1_baseline | 2e-4 | 16 | 1 | 5000 |
-| exp2_lower_lr | 5e-5 | 16 | 3 | 5000 |
-| exp3_high_rank | 1e-4 | 32 | 3 | 5000 |
+This runs in one shot:
+1. Eval base model (baseline)
+2. LoRA fine-tune
+3. Merge adapter
+4. Eval merged model (finetuned)
+5. Log delta to MLflow
 
-## Serving
+Or individually:
+```bash
+python train.py  --config configs/exp1_baseline.yaml
+python merge.py  --config configs/exp1_baseline.yaml
+python eval.py   --exp 1 --tag baseline
+python eval.py   --exp 1 --tag finetuned
+```
+
+## MLflow
+
+MLflow logs to `mlruns.db` (SQLite file)
+
+To view results locally:
+```bash
+bash serve_mlflow.sh    # opens http://localhost:5000
+```
+
+## Configs
+
+| Config | LR | LoRA r | Epochs |
+|--------|-----|--------|--------|
+| exp1_baseline | 2e-4 | 16 | 1 |
+| exp2_lower_lr | 5e-5 | 16 | 3 |
+| exp3_high_rank | 1e-4 | 32 | 3 |
+
+All use 5000 training samples, batch_size=2, grad_accum=4.
+
+## Serving a merged model
 
 On Mac (MLX):
 ```bash
-bash serve_model_mlx.sh ./merged_model/exp2
+bash serve_model_mlx.sh ./merged_model/exp1
 ```
 
-On a CUDA cluster:
+On CUDA cluster:
 ```bash
-bash serve_model_cuda.sh ./merged_model/exp2
+bash serve_model_cuda.sh ./merged_model/exp1
 ```
 
-## Bugs 
-- Training on MPS uses fp32 because fp16 is not supported and i got zero gradients
-- On CUDA the scripts automatically switch to bf16
+## Notes
+- MPS (Mac) uses fp32. fp16 causes NaN gradients
+- CUDA automatically uses bf16
+- eval tasks: mmlu, commonsense_qa, mlqa_en_en, mathqa
