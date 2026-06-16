@@ -6,6 +6,7 @@ import time
 import yaml
 import mlflow
 import lm_eval
+from lm_eval.tasks import TaskManager
 from utils import setup_env, get_device
 
 setup_env()
@@ -20,16 +21,17 @@ config_path = glob.glob(f"configs/exp{args.exp}_*.yaml")[0]
 with open(config_path) as f:
     cfg = yaml.safe_load(f)
 
-MODEL_PATH = cfg["model"]["base_model_id"] if args.tag == "baseline" else cfg["data"]["merged_dir"]
-TASKS      = ["arc_easy", "mmlu", "winogrande"]
+MODEL_PATH  = cfg["model"]["base_model_id"] if args.tag == "baseline" else cfg["data"]["merged_dir"]
+TASKS       = ["mmlu", "commonsense_qa", "mlqa_en_en", "mathqa"]
 NUM_FEWSHOT = 0
-LIMIT       = 2000 # number of samples lm_eval evaluates per task
+LIMIT       = 2000
 device      = get_device()
 dtype_str   = "bfloat16" if device == "cuda" else "float32"
 RUN_NAME    = f"lm-eval-exp{args.exp}-{args.tag}-{time.strftime('%Y%m%d-%H%M%S')}"
 
 print(f"[exp{args.exp}] Evaluating {args.tag}: {MODEL_PATH} on {device}")
 
+task_manager = TaskManager(include_path="./custom_tasks")
 results = lm_eval.simple_evaluate(
     model="hf",
     model_args=f"pretrained={MODEL_PATH},dtype={dtype_str},device={device}",
@@ -37,6 +39,8 @@ results = lm_eval.simple_evaluate(
     num_fewshot=NUM_FEWSHOT,
     batch_size=1,
     limit=LIMIT,
+    task_manager=task_manager,
+    confirm_run_unsafe_code=True,
 )
 
 mlflow.set_tracking_uri(cfg["mlflow"]["tracking_uri"])

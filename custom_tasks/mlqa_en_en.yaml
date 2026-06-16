@@ -1,0 +1,26 @@
+task: mlqa_en_en
+dataset_path: json
+dataset_kwargs:
+  data_files:
+    test: data/mlqa/test_en_en.jsonl
+    validation: data/mlqa/validation_en_en.jsonl
+test_split: test
+validation_split: validation
+output_type: generate_until
+doc_to_text: "Context: {{context}}\n\nQuestion: {{question}}\n\nAnswer:"
+doc_to_target: "{{answers[0]}}"
+process_docs: !function mlqa_utils.process_docs
+process_results: !function mlqa_utils.process_results_en
+metric_list:
+  - metric: exact_match
+    aggregation: mean
+    higher_is_better: true
+  - metric: f1
+    aggregation: mean
+    higher_is_better: true
+generation_kwargs:
+  until:
+    - "\n"
+  do_sample: false
+metadata:
+  version: 0.1

@@ -1,0 +1,23 @@
+task: mathqa
+dataset_path: json
+dataset_kwargs:
+  data_files:
+    train: data/mathqa/train.json
+    test: data/mathqa/test.json
+    validation: data/mathqa/validation.json
+training_split: train
+validation_split: validation
+test_split: test
+output_type: multiple_choice
+doc_to_text: "Question: {{Problem}}\nAnswer:"
+doc_to_target: "{{['a', 'b', 'c', 'd', 'e'].index(correct)}}"
+doc_to_choice: !function mathqa_utils.doc_to_choice
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+  - metric: acc_norm
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0
