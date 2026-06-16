@@ -26,7 +26,7 @@ pip install -r requirements.txt
 ## Configs!
 
 ```bash
-python experiment.py --config configs/exp2_lower_lr.yaml
+python experiment.py --exp 2
 ```
 This will:
 - Evaluate the base model (baseline)

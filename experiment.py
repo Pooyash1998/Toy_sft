@@ -6,11 +6,14 @@ import time
 import yaml
 import mlflow
 
+import glob
+
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", required=True, help="Path to experiment config yaml")
+parser.add_argument("--exp", required=True, type=int)
 args = parser.parse_args()
 
-with open(args.config) as f:
+config_path = glob.glob(f"configs/exp{args.exp}_*.yaml")[0]
+with open(config_path) as f:
     cfg = yaml.safe_load(f)
 
 MERGED_DIR  = cfg["data"].get("merged_dir", "./merged_model")
@@ -29,14 +32,14 @@ def run(cmd):
 
 
 def load_eval_results(key):
-    path = f"eval_results_{key}.json"
+    path = f"eval_results/{key}.json"
     with open(path) as f:
         return json.load(f)
 
 
 with mlflow.start_run(run_name=RUN_NAME) as parent:
     mlflow.log_params({
-        "config":        args.config,
+        "config":        config_path,
         "base_model":    BASE_MODEL,
         "lora_r":        cfg["lora"]["r"],
         "lora_alpha":    cfg["lora"]["alpha"],
@@ -45,8 +48,7 @@ with mlflow.start_run(run_name=RUN_NAME) as parent:
         "num_samples":   5000,
     })
 
-    import re
-    exp_num = re.search(r"exp(\d+)", args.config).group(1)
+    exp_num = str(args.exp)
 
     # Step 1 — eval base model
     print("\n========== STEP 1: Baseline eval ==========")
@@ -55,11 +57,11 @@ with mlflow.start_run(run_name=RUN_NAME) as parent:
 
     # Step 2 — train
     print("\n========== STEP 2: Training ==========")
-    run([sys.executable, "train.py", "--config", args.config])
+    run([sys.executable, "train.py", "--config", config_path])
 
     # Step 3 — merge
     print("\n========== STEP 3: Merging ==========")
-    run([sys.executable, "merge.py", "--config", args.config])
+    run([sys.executable, "merge.py", "--config", config_path])
 
     # Step 4 — eval merged model
     print("\n========== STEP 4: Finetuned eval ==========")
