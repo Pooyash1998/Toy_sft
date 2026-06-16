@@ -1,8 +1,18 @@
 ## Setup
 
+**Mac**
 ```bash
-conda env create -f environment.yaml
-conda activate sft
+conda create -n sft python=3.12 -y && conda activate sft
+pip install torch torchvision torchaudio
+pip install -r requirements-mac.txt
+```
+
+**CUDA cluster (tested on CUDA 12.0 / RTX 3090)**
+
+```bash
+conda create -n sft python=3.12 -y && conda activate sft
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install -r requirements.txt
 ```
 
 ## Explaination 
