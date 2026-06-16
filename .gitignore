@@ -3,12 +3,7 @@ merged_model/
 mlx_model/
 .vscode
 outputs/
-eval_results/
-eval_results_*.json
 data/
-mlruns/
-mlruns.db
-eval_results.json
 __pycache__/
 *.pyc
 .DS_Store

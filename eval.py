@@ -27,43 +27,52 @@ NUM_FEWSHOT = 0
 LIMIT       = 2000
 device      = get_device()
 dtype_str   = "bfloat16" if device == "cuda" else "float32"
-RUN_NAME    = f"lm-eval-exp{args.exp}-{args.tag}-{time.strftime('%Y%m%d-%H%M%S')}"
 
-print(f"[exp{args.exp}] Evaluating {args.tag}: {MODEL_PATH} on {device}")
-
-task_manager = TaskManager(include_path="./custom_tasks")
-results = lm_eval.simple_evaluate(
-    model="hf",
-    model_args=f"pretrained={MODEL_PATH},dtype={dtype_str},device={device}",
-    tasks=TASKS,
-    num_fewshot=NUM_FEWSHOT,
-    batch_size=1,
-    limit=LIMIT,
-    task_manager=task_manager,
-    confirm_run_unsafe_code=True,
-)
+print(f"\n[exp{args.exp}] Evaluating {args.tag}: {MODEL_PATH}")
+print(f"  Device : {device}")
+print(f"  Tasks  : {TASKS}")
+print(f"  Limit  : {LIMIT} samples per task\n")
 
 mlflow.set_tracking_uri(cfg["mlflow"]["tracking_uri"])
 mlflow.set_experiment(cfg["mlflow"]["experiment_name"])
 
 os.makedirs("eval_results", exist_ok=True)
-results_path = f"eval_results/exp{args.exp}_{args.tag}.json"
-with open(results_path, "w") as f:
-    json.dump(results["results"], f, indent=2)
 
-print(f"\n=== Results (exp{args.exp} {args.tag}) ===")
-with mlflow.start_run(run_name=RUN_NAME):
-    mlflow.log_param("exp",        args.exp)
-    mlflow.log_param("tag",        args.tag)
-    mlflow.log_param("model_path", MODEL_PATH)
-    mlflow.log_param("tasks",      TASKS)
-    mlflow.log_artifact(results_path)
+task_manager = TaskManager(include_path="./custom_tasks") #Workaround for the datasets problem
 
-    for task, task_results in results["results"].items():
-        print(f"\n{task}:")
-        for metric, value in task_results.items():
-            if isinstance(value, (int, float)) and "_stderr" not in metric:
-                mlflow.log_metric(metric.replace(",", "_"), value)
-                print(f"  {metric.replace(',', '_')}: {value:.4f}")
+for i, task in enumerate(TASKS, 1):
+    print(f"\n[{i}/{len(TASKS)}] ► Starting task: {task} ...")
 
-print(f"\nSaved to {results_path}")
+    results = lm_eval.simple_evaluate(
+        model="hf",
+        model_args=f"pretrained={MODEL_PATH},dtype={dtype_str},device={device}",
+        tasks=[task],
+        num_fewshot=NUM_FEWSHOT,
+        batch_size=1,
+        limit=LIMIT,
+        task_manager=task_manager,
+        confirm_run_unsafe_code=True,
+    )
+
+    results_path = f"eval_results/exp{args.exp}_{args.tag}_{task}.json"
+    with open(results_path, "w") as f:
+        json.dump(results["results"], f, indent=2)
+
+    run_name = f"lm-eval-exp{args.exp}-{args.tag}-{task}-{time.strftime('%Y%m%d-%H%M%S')}"
+
+    print(f"[{i}/{len(TASKS)}] ✓ Done: {task} — logging to MLflow as '{run_name}'")
+    with mlflow.start_run(run_name=run_name):
+        mlflow.log_param("exp",        args.exp)
+        mlflow.log_param("tag",        args.tag)
+        mlflow.log_param("model_path", MODEL_PATH)
+        mlflow.log_param("task",       task)
+        # mlflow.log_artifact(results_path)
+
+        for task_key, task_data in results["results"].items():
+            for metric, value in task_data.items():
+                if isinstance(value, (int, float)) and "_stderr" not in metric:
+                    clean_metric = metric.replace(",", "_")
+                    mlflow.log_metric(clean_metric, value)
+                    print(f"  {clean_metric}: {value:.4f}")
+
+print(f"\n[exp{args.exp}] All tasks complete.")

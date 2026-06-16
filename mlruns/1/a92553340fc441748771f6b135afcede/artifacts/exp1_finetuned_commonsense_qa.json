@@ -1,0 +1,9 @@
+{
+  "commonsense_qa": {
+    "name": "commonsense_qa",
+    "alias": "commonsense_qa",
+    "sample_len": 1221,
+    "acc,none": 0.23095823095823095,
+    "acc_stderr,none": 0.012065956937275758
+  }
+}

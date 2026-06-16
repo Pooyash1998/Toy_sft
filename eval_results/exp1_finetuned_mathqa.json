@@ -1,0 +1,11 @@
+{
+  "mathqa": {
+    "name": "mathqa",
+    "alias": "mathqa",
+    "sample_len": 2000,
+    "acc,none": 0.275,
+    "acc_stderr,none": 0.009986859800975589,
+    "acc_norm,none": 0.272,
+    "acc_norm_stderr,none": 0.009952764880392895
+  }
+}

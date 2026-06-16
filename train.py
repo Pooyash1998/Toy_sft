@@ -133,5 +133,5 @@ with mlflow.start_run(run_name=RUN_NAME):
     trainer.train()
     trainer.save_model(OUTPUT_DIR)
     tokenizer.save_pretrained(OUTPUT_DIR)
-    mlflow.log_artifacts(OUTPUT_DIR, artifact_path="model")
+    # mlflow.log_artifacts(OUTPUT_DIR, artifact_path="model")
     print(f"Done. Model saved to {OUTPUT_DIR}")

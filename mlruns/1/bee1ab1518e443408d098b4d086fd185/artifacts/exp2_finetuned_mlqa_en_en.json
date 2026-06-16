@@ -1,0 +1,11 @@
+{
+  "mlqa_en_en": {
+    "name": "mlqa_en_en",
+    "alias": "mlqa_en_en",
+    "sample_len": 2000,
+    "exact_match,none": 0.192,
+    "exact_match_stderr,none": 0.008809472367951493,
+    "f1,none": 0.3267041428144173,
+    "f1_stderr,none": 0.008746343778864282
+  }
+}
