@@ -1,0 +1,11 @@
+models/
+merged_model/
+mlx_model/
+outputs/
+data/
+mlruns/
+mlruns.db
+eval_results.json
+__pycache__/
+*.pyc
+.DS_Store
