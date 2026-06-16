@@ -1,7 +1,10 @@
 models/
 merged_model/
 mlx_model/
+.vscode
 outputs/
+eval_results/
+eval_results_*.json
 data/
 mlruns/
 mlruns.db

@@ -1,0 +1,30 @@
+experiment:
+  name: "exp3-high-rank"
+
+model:
+  base_model_id: "ibm-granite/granite-4.0-350m"
+  model_path: "./models/granite-4.0-350m"
+
+data:
+  data_path: "./data/ultrafeedback_binarized"
+  output_dir: "./outputs/exp3"
+  merged_dir: "./merged_model/exp3"
+
+lora:
+  r: 32
+  alpha: 64
+  dropout: 0.05
+
+training:
+  epochs: 3
+  batch_size: 2
+  grad_accum: 4
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 200
+  learning_rate: 0.0001
+  max_length: 512
+
+mlflow:
+  tracking_uri: "sqlite:///mlruns.db"
+  experiment_name: "granite-350M-sft"
