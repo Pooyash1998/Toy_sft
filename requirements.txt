@@ -5,5 +5,7 @@ datasets==4.8.5
 accelerate
 mlflow
 lm-eval==0.4.12
+langdetect
+immutabledict
 tenacity
 pyyaml

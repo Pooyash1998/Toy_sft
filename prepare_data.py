@@ -8,8 +8,8 @@ TEST_SAMPLES = 500
 def prepare_data():
     raw_dataset = load_dataset(DATASET_ID)
     print("Raw dataset loaded:", list(raw_dataset.keys()))
-    train = raw_dataset["train_sft"].select(range(TRAIN_SAMPLES))
-    test = raw_dataset["test_sft"].select(range(TEST_SAMPLES))
+    train = raw_dataset["train_sft"].shuffle(seed=42).select(range(TRAIN_SAMPLES))
+    test = raw_dataset["test_sft"].shuffle(seed=42).select(range(TEST_SAMPLES))
     print("Columns:", train.column_names)
     print("\n sampel row:")
     for i in train[0]["messages"]:

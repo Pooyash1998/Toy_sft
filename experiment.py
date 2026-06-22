@@ -8,6 +8,8 @@ import mlflow
 
 import glob
 
+from utils import EVAL_TASKS
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--exp", required=True, type=int)
 args = parser.parse_args()
@@ -31,10 +33,13 @@ def run(cmd):
     return result
 
 
-def load_eval_results(key):
-    path = f"eval_results/{key}.json"
-    with open(path) as f:
-        return json.load(f)
+def load_eval_results(exp_num, tag):
+    combined = {}
+    for task in EVAL_TASKS:
+        path = f"eval_results/exp{exp_num}_{tag}_{task}.json"
+        with open(path) as f:
+            combined.update(json.load(f))
+    return combined
 
 
 with mlflow.start_run(run_name=RUN_NAME) as parent:
@@ -53,7 +58,7 @@ with mlflow.start_run(run_name=RUN_NAME) as parent:
     # Step 1 — eval base model
     print("\n========== STEP 1: Baseline eval ==========")
     run([sys.executable, "eval.py", "--exp", exp_num, "--tag", "baseline"])
-    base_results = load_eval_results(f"exp{exp_num}_baseline")
+    base_results = load_eval_results(exp_num, "baseline")
 
     # Step 2 — train
     print("\n========== STEP 2: Training ==========")
@@ -66,20 +71,24 @@ with mlflow.start_run(run_name=RUN_NAME) as parent:
     # Step 4 — eval merged model
     print("\n========== STEP 4: Finetuned eval ==========")
     run([sys.executable, "eval.py", "--exp", exp_num, "--tag", "finetuned"])
-    ft_results = load_eval_results(f"exp{exp_num}_finetuned")
+    ft_results = load_eval_results(exp_num, "finetuned")
 
     # Step 5 — log delta metrics to parent run
     print("\n========== STEP 5: Comparison ==========")
-    print(f"\n{'Task':<40} {'Baseline':>10} {'Finetuned':>10} {'Delta':>10}")
-    print("-" * 72)
-    for task in base_results:
-        base_acc = base_results[task].get("acc,none")
-        ft_acc   = ft_results.get(task, {}).get("acc,none")
-        if base_acc is not None and ft_acc is not None:
-            delta = ft_acc - base_acc
-            mlflow.log_metric(f"baseline_{task}_acc",  base_acc)
-            mlflow.log_metric(f"finetuned_{task}_acc", ft_acc)
-            mlflow.log_metric(f"delta_{task}_acc",     delta)
-            print(f"{task:<40} {base_acc:>10.4f} {ft_acc:>10.4f} {delta:>+10.4f}")
+    print(f"\n{'Task':<40} {'Baseline':>14} {'Finetuned':>14} {'Delta':>10}")
+    print("-" * 82)
+    for task, task_data in base_results.items():
+        for metric, base_val in task_data.items():
+            if not isinstance(base_val, (int, float)) or "_stderr" in metric:
+                continue
+            ft_val = ft_results.get(task, {}).get(metric)
+            if ft_val is None:
+                continue
+            delta = ft_val - base_val
+            clean_metric = metric.replace(",", "_")
+            mlflow.log_metric(f"baseline_{task}_{clean_metric}",  base_val)
+            mlflow.log_metric(f"finetuned_{task}_{clean_metric}", ft_val)
+            mlflow.log_metric(f"delta_{task}_{clean_metric}",     delta)
+            print(f"{task + '/' + clean_metric:<40} {base_val:>14.4f} {ft_val:>14.4f} {delta:>+10.4f}")
 
     print(f"\nExperiment '{RUN_NAME}' complete.")

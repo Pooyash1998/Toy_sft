@@ -7,7 +7,7 @@ import yaml
 import mlflow
 import lm_eval
 from lm_eval.tasks import TaskManager
-from utils import setup_env, get_device
+from utils import setup_env, get_device, EVAL_TASKS
 
 setup_env()
 
@@ -22,9 +22,9 @@ with open(config_path) as f:
     cfg = yaml.safe_load(f)
 
 MODEL_PATH  = cfg["model"]["base_model_id"] if args.tag == "baseline" else cfg["data"]["merged_dir"]
-TASKS       = ["mmlu", "commonsense_qa", "mlqa_en_en", "mathqa"]
+TASKS       = EVAL_TASKS
 NUM_FEWSHOT = 0
-LIMIT       = 2000
+LIMIT       = 200
 device      = get_device()
 dtype_str   = "bfloat16" if device == "cuda" else "float32"
 
@@ -51,12 +51,28 @@ for i, task in enumerate(TASKS, 1):
         batch_size=1,
         limit=LIMIT,
         task_manager=task_manager,
+        apply_chat_template=True,
+        log_samples=True,
         confirm_run_unsafe_code=True,
     )
 
     results_path = f"eval_results/exp{args.exp}_{args.tag}_{task}.json"
     with open(results_path, "w") as f:
         json.dump(results["results"], f, indent=2)
+
+    # qualitative dump: actual prompt sent + model's generated answer, for manual inspection
+    samples_path = f"eval_results/exp{args.exp}_{args.tag}_{task}_samples.json"
+    qualitative = []
+    for ex in results.get("samples", {}).get(task, []):
+        qualitative.append({
+            "doc_id":     ex["doc_id"],
+            "prompt":     ex["arguments"][0][0] if ex.get("arguments") else None,
+            "target":     ex["target"],
+            "prediction": ex["filtered_resps"][0] if ex.get("filtered_resps") else None,
+            "metrics":    {m: ex[m] for m in ex.get("metrics", [])},
+        })
+    with open(samples_path, "w") as f:
+        json.dump(qualitative, f, indent=2)
 
     run_name = f"lm-eval-exp{args.exp}-{args.tag}-{task}-{time.strftime('%Y%m%d-%H%M%S')}"
 
@@ -66,7 +82,8 @@ for i, task in enumerate(TASKS, 1):
         mlflow.log_param("tag",        args.tag)
         mlflow.log_param("model_path", MODEL_PATH)
         mlflow.log_param("task",       task)
-        # mlflow.log_artifact(results_path)
+        mlflow.log_artifact(results_path)
+        mlflow.log_artifact(samples_path)
 
         for task_key, task_data in results["results"].items():
             for metric, value in task_data.items():

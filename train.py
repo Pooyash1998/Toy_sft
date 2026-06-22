@@ -6,7 +6,7 @@ from datasets import load_from_disk
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig, TaskType
 from trl import SFTConfig, SFTTrainer
-from utils import setup_env, get_device, get_torch_dtype, get_trainer_precision, get_pin_memory
+from utils import setup_env, get_device, get_torch_dtype, get_trainer_precision, get_pin_memory, get_attn_implementation, get_device_map
 
 setup_env()
 
@@ -44,8 +44,9 @@ model = AutoModelForCausalLM.from_pretrained(
     BASE_MODEL_ID,
     dtype=dtype,
     trust_remote_code=True,
-    device_map={"": device},
+    device_map=get_device_map(device),
     cache_dir=MODEL_PATH,
+    attn_implementation=get_attn_implementation(device),
 )
 model.config.use_cache = False
 print("Loaded model")
@@ -55,17 +56,14 @@ train_ds = dataset["train"]
 eval_ds  = dataset["test"]
 
 
+def to_prompt_completion(example):
+    return {"prompt": example["messages"][:-1], "completion": example["messages"][-1:]}
+
+
+train_ds = train_ds.map(to_prompt_completion, remove_columns=train_ds.column_names)
+eval_ds  = eval_ds.map(to_prompt_completion,  remove_columns=eval_ds.column_names)
+
 print(f"Train size: {len(train_ds)} | Eval size: {len(eval_ds)}")
-
-
-def format_messages(example):
-    return {"text": tokenizer.apply_chat_template(
-        example["messages"], tokenize=False, add_generation_prompt=False
-    )}
-
-
-train_ds = train_ds.map(format_messages, remove_columns=train_ds.column_names)
-eval_ds  = eval_ds.map(format_messages,  remove_columns=eval_ds.column_names)
 
 mlflow.set_tracking_uri(cfg["mlflow"]["tracking_uri"])
 mlflow.set_experiment(cfg["mlflow"]["experiment_name"])
@@ -113,7 +111,6 @@ with mlflow.start_run(run_name=RUN_NAME):
         eval_steps=cfg["training"]["eval_steps"],
         save_steps=cfg["training"]["save_steps"],
         max_length=MAX_LENGTH,
-        dataset_text_field="text",
         loss_type="chunked_nll",
         dataloader_pin_memory=get_pin_memory(device),
         report_to="mlflow",
@@ -131,6 +128,7 @@ with mlflow.start_run(run_name=RUN_NAME):
 
     print("Starting training ...")
     trainer.train()
+    mlflow.flush_async_logging()
     trainer.save_model(OUTPUT_DIR)
     tokenizer.save_pretrained(OUTPUT_DIR)
     # mlflow.log_artifacts(OUTPUT_DIR, artifact_path="model")

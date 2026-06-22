@@ -3,6 +3,8 @@ import os
 import sys
 import torch
 
+EVAL_TASKS = ["mlqa_en_en", "ifeval"]
+
 
 def setup_env():
     if sys.platform == "darwin":
@@ -27,3 +29,11 @@ def get_trainer_precision(device):
 
 def get_pin_memory(device):
     return device == "cuda"
+
+
+def get_attn_implementation(device):
+    return "flash_attention_2" if device == "cuda" else "sdpa"
+
+
+def get_device_map(device):
+    return "auto" if device == "cuda" else {"": device}
